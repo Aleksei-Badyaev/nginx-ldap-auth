@@ -1,25 +1,24 @@
-#!/bin/sh
+#!/bin/bash
 ''''[ -z $LOG ] && export LOG=/dev/stdout # '''
 ''''which python2 >/dev/null && exec python2 -u "$0" "$@" >> $LOG 2>&1 # '''
 ''''which python  >/dev/null && exec python  -u "$0" "$@" >> $LOG 2>&1 # '''
 
 # Copyright (C) 2014-2015 Nginx, Inc.
 
-import sys, os, signal, base64, ldap, Cookie, argparse
+import sys, os, stat, signal, base64, ldap, Cookie, argparse
 from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
 
 #Listen = ('localhost', 8888)
-#Listen = "/tmp/auth.sock"    # Also uncomment lines in 'Requests are
-                              # processed with UNIX sockets' section below
+Listen = '/tmp/nginx-ldap-auth.sock'
 
 # -----------------------------------------------------------------------------
 # Different request processing models: select one
 # -----------------------------------------------------------------------------
 # Requests are processed in separate thread
-import threading
-from SocketServer import ThreadingMixIn
-class AuthHTTPServer(ThreadingMixIn, HTTPServer):
-    pass
+#import threading
+#from SocketServer import ThreadingMixIn
+#class AuthHTTPServer(ThreadingMixIn, HTTPServer):
+#    pass
 # -----------------------------------------------------------------------------
 # Requests are processed in separate process
 #from SocketServer import ForkingMixIn
@@ -27,10 +26,10 @@ class AuthHTTPServer(ThreadingMixIn, HTTPServer):
 #    pass
 # -----------------------------------------------------------------------------
 # Requests are processed with UNIX sockets
-#import threading
-#from SocketServer import ThreadingUnixStreamServer
-#class AuthHTTPServer(ThreadingUnixStreamServer, HTTPServer):
-#    pass
+import threading
+from SocketServer import ThreadingUnixStreamServer
+class AuthHTTPServer(ThreadingUnixStreamServer, HTTPServer):
+    pass
 # -----------------------------------------------------------------------------
 
 class AuthHandler(BaseHTTPRequestHandler):
@@ -65,7 +64,10 @@ class AuthHandler(BaseHTTPRequestHandler):
             self.send_header('WWW-Authenticate', 'Basic realm="' + ctx['realm'] + '"')
             self.send_header('Cache-Control', 'no-cache')
             self.end_headers()
-
+            if auth_header is None:
+                self.log_message('auth_header is None')
+            else:
+                self.log_message('auth_header: %s', auth_header)
             return True
 
         ctx['action'] = 'decoding credentials'
@@ -73,7 +75,6 @@ class AuthHandler(BaseHTTPRequestHandler):
         try:
             auth_decoded = base64.b64decode(auth_header[6:])
             user, passwd = auth_decoded.split(':', 1)
-
         except:
             self.auth_failed(ctx)
             return True
@@ -241,6 +242,7 @@ class LDAPAuthHandler(AuthHandler):
 
             # Successfully authenticated user
             self.send_response(200)
+            self.send_header('Remote_User', ctx['user'])
             self.end_headers()
 
         except:
@@ -296,8 +298,8 @@ if __name__ == '__main__':
         default="", help="HTTP cookie name to set in (Default: unset)")
 
     args = parser.parse_args()
-    global Listen
-    Listen = (args.host, args.port)
+    #global Listen
+    #Listen = (args.host, args.port)
     auth_params = {
              'realm': ('X-Ldap-Realm', args.realm),
              'url': ('X-Ldap-URL', args.url),
@@ -313,7 +315,11 @@ if __name__ == '__main__':
     server = AuthHTTPServer(Listen, LDAPAuthHandler)
     signal.signal(signal.SIGINT, exit_handler)
     signal.signal(signal.SIGTERM, exit_handler)
+    if isinstance(Listen, basestring):
+        os.chmod(Listen, (stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR |
+                          stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP |
+                          stat.S_IROTH | stat.S_IWOTH | stat.S_IXOTH))
 
-    sys.stdout.write("Start listening on %s:%d...\n" % Listen)
+    sys.stdout.write("Start listening on {}...\n".format(Listen))
     sys.stdout.flush()
     server.serve_forever()
