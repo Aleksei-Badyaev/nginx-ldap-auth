@@ -1,4 +1,4 @@
-FROM python:2-alpine
+FROM python:3-alpine
 
 COPY nginx-ldap-auth-daemon.py /usr/src/app/
 
@@ -11,6 +11,7 @@ RUN \
     pip install python-ldap && \
     apk del build-dependencies
 
-EXPOSE 8888
+EXPOSE 8000
 
-CMD ["python", "/usr/src/app/nginx-ldap-auth-daemon.py", "--host", "0.0.0.0", "--port", "8888"]
+CMD ["python", "/usr/src/app/nginx-ldap-auth-daemon.py",\
+     "--host", "0.0.0.0", "--port", "8000"]

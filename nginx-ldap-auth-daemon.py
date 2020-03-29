@@ -1,38 +1,24 @@
-#!/bin/bash
-''''[ -z $LOG ] && export LOG=/dev/stdout # '''
-''''which python2 >/dev/null && exec python2 -u "$0" "$@" >> $LOG 2>&1 # '''
-''''which python  >/dev/null && exec python  -u "$0" "$@" >> $LOG 2>&1 # '''
-
+#!/usr/bin/env python3
 # Copyright (C) 2014-2015 Nginx, Inc.
+"""Nginx LDAP Authentication."""
 
-import sys, os, stat, signal, base64, ldap, Cookie, argparse
-from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
+import sys, os, stat, signal, base64, ldap, http.cookies, argparse
+from http.server import HTTPServer, BaseHTTPRequestHandler
+import threading
+from socketserver import ThreadingUnixStreamServer
+
 
 #Listen = ('localhost', 8888)
 Listen = '/tmp/nginx-ldap-auth.sock'
 
-# -----------------------------------------------------------------------------
-# Different request processing models: select one
-# -----------------------------------------------------------------------------
-# Requests are processed in separate thread
-#import threading
-#from SocketServer import ThreadingMixIn
-#class AuthHTTPServer(ThreadingMixIn, HTTPServer):
-#    pass
-# -----------------------------------------------------------------------------
-# Requests are processed in separate process
-#from SocketServer import ForkingMixIn
-#class AuthHTTPServer(ForkingMixIn, HTTPServer):
-#    pass
-# -----------------------------------------------------------------------------
-# Requests are processed with UNIX sockets
-import threading
-from SocketServer import ThreadingUnixStreamServer
+
 class AuthHTTPServer(ThreadingUnixStreamServer, HTTPServer):
+    """Сервер HTTP."""
     pass
-# -----------------------------------------------------------------------------
+
 
 class AuthHandler(BaseHTTPRequestHandler):
+    """Обработчик запроса."""
 
     # Return True if request is processed and response sent, otherwise False
     # Set ctx['user'] and ctx['pass'] for authentication
@@ -41,7 +27,7 @@ class AuthHandler(BaseHTTPRequestHandler):
         ctx = self.ctx
 
         ctx['action'] = 'input parameters check'
-        for k, v in self.get_params().items():
+        for k, v in list(self.get_params().items()):
             ctx[k] = self.headers.get(v[0], v[1])
             if ctx[k] == None:
                 self.auth_failed(ctx, 'required "%s" header was not passed' % k)
@@ -88,7 +74,7 @@ class AuthHandler(BaseHTTPRequestHandler):
     def get_cookie(self, name):
         cookies = self.headers.get('Cookie')
         if cookies:
-            authcookie = Cookie.BaseCookie(cookies).get(name)
+            authcookie = http.cookies.BaseCookie(cookies).get(name)
             if authcookie:
                 return authcookie.value
             else:
@@ -142,8 +128,9 @@ class AuthHandler(BaseHTTPRequestHandler):
         self.log_message(format, *args)
 
 
-# Verify username/password against LDAP server
 class LDAPAuthHandler(AuthHandler):
+    """Verify username/password against LDAP server."""
+
     # Parameters to put into self.ctx from the HTTP header of auth request
     params =  {
              # parameter      header         default
@@ -265,7 +252,7 @@ class LDAPAuthHandler(AuthHandler):
 def exit_handler(signal, frame):
     global Listen
 
-    if isinstance(Listen, basestring):
+    if isinstance(Listen, str):
         try:
             os.unlink(Listen)
         except:
@@ -329,7 +316,7 @@ if __name__ == '__main__':
     server = AuthHTTPServer(Listen, LDAPAuthHandler)
     signal.signal(signal.SIGINT, exit_handler)
     signal.signal(signal.SIGTERM, exit_handler)
-    if isinstance(Listen, basestring):
+    if isinstance(Listen, str):
         os.chmod(Listen, (stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR |
                           stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP |
                           stat.S_IROTH | stat.S_IWOTH | stat.S_IXOTH))
