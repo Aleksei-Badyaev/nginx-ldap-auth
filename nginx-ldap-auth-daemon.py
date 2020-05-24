@@ -33,6 +33,7 @@ if sys.version_info.major == 2:
 elif sys.version_info.major == 3:
     from socketserver import ThreadingMixIn
 
+
 class AuthHTTPServer(ThreadingMixIn, HTTPServer):
     pass
 
@@ -43,7 +44,7 @@ class AuthHandler(BaseHTTPRequestHandler):
     # Return True if request is processed and response sent, otherwise False
     # Set ctx['user'] and ctx['pass'] for authentication
     def do_GET(self):
-
+        """Выполнение метода GET."""
         ctx = self.ctx
 
         ctx['action'] = 'input parameters check'
