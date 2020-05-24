@@ -1,4 +1,7 @@
-#!/usr/bin/env python3
+#!/bin/sh
+''''[ -z $LOG ] && export LOG=/dev/stdout # '''
+''''which python  >/dev/null && exec python  -u "$0" "$@" >> $LOG 2>&1 # '''
+
 # Copyright (C) 2014-2015 Nginx, Inc.
 """Nginx LDAP Authentication."""
 
@@ -7,13 +10,30 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 import threading
 from socketserver import ThreadingUnixStreamServer
 
+import sys, os, signal, base64, ldap, argparse
+if sys.version_info.major == 2:
+    from Cookie import BaseCookie
+    from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
+elif sys.version_info.major == 3:
+    from http.cookies import BaseCookie
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+
+if not hasattr(__builtins__, "basestring"): basestring = (str, bytes)
 
 #Listen = ('localhost', 8888)
 Listen = '/tmp/nginx-ldap-auth.sock'
 
+# -----------------------------------------------------------------------------
+# Different request processing models: select one
+# -----------------------------------------------------------------------------
+# Requests are processed in separate thread
+import threading
+if sys.version_info.major == 2:
+    from SocketServer import ThreadingMixIn
+elif sys.version_info.major == 3:
+    from socketserver import ThreadingMixIn
 
-class AuthHTTPServer(ThreadingUnixStreamServer, HTTPServer):
-    """Сервер HTTP."""
+class AuthHTTPServer(ThreadingMixIn, HTTPServer):
     pass
 
 
@@ -60,6 +80,7 @@ class AuthHandler(BaseHTTPRequestHandler):
 
         try:
             auth_decoded = base64.b64decode(auth_header[6:])
+            if sys.version_info.major == 3: auth_decoded = auth_decoded.decode("utf-8")
             user, passwd = auth_decoded.split(':', 1)
         except:
             self.auth_failed(ctx)
@@ -74,7 +95,7 @@ class AuthHandler(BaseHTTPRequestHandler):
     def get_cookie(self, name):
         cookies = self.headers.get('Cookie')
         if cookies:
-            authcookie = http.cookies.BaseCookie(cookies).get(name)
+            authcookie = BaseCookie(cookies).get(name)
             if authcookie:
                 return authcookie.value
             else:
