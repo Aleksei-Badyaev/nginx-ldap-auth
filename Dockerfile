@@ -12,7 +12,6 @@ RUN \
     pip install python-ldap && \
     apk del build-dependencies
 
-EXPOSE 8000
+ARG LISTEN="--host /tmp/nginx-ldap-auth.sock"
 
-CMD ["python", "/usr/src/app/nginx-ldap-auth-daemon.py",\
-     "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "/usr/src/app/nginx-ldap-auth-daemon.py", "${LISTEN}"]

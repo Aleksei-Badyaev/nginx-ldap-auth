@@ -16,3 +16,4 @@ RUNDIR=/var/run/nginx-ldap-auth/
 PIDFILE=/var/run/nginx-ldap-auth/nginx-ldap-auth.pid
 USER=nginx-ldap-auth
 GROUP=nginx-ldap-auth
+LISTEN="--host /tmp/nginx-ldap-auth.sock"

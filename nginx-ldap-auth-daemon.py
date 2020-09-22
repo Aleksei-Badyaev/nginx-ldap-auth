@@ -5,33 +5,20 @@
 # Copyright (C) 2014-2015 Nginx, Inc.
 """Nginx LDAP Authentication."""
 
-import sys, os, stat, signal, base64, ldap, http.cookies, argparse
+import sys
+import os
+import stat
+import signal
+import base64
+import ldap
+import argparse
+
+from socketserver import ThreadingMixIn
+from http.cookies import BaseCookie
 from http.server import HTTPServer, BaseHTTPRequestHandler
-import threading
-from socketserver import ThreadingUnixStreamServer
 
-import sys, os, signal, base64, ldap, argparse
-if sys.version_info.major == 2:
-    from Cookie import BaseCookie
-    from BaseHTTPServer import HTTPServer, BaseHTTPRequestHandler
-elif sys.version_info.major == 3:
-    from http.cookies import BaseCookie
-    from http.server import HTTPServer, BaseHTTPRequestHandler
 
-if not hasattr(__builtins__, "basestring"): basestring = (str, bytes)
-
-#Listen = ('localhost', 8888)
 Listen = '/tmp/nginx-ldap-auth.sock'
-
-# -----------------------------------------------------------------------------
-# Different request processing models: select one
-# -----------------------------------------------------------------------------
-# Requests are processed in separate thread
-import threading
-if sys.version_info.major == 2:
-    from SocketServer import ThreadingMixIn
-elif sys.version_info.major == 3:
-    from socketserver import ThreadingMixIn
 
 
 class AuthHTTPServer(ThreadingMixIn, HTTPServer):
@@ -46,7 +33,6 @@ class AuthHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         """Выполнение метода GET."""
         ctx = self.ctx
-
         ctx['action'] = 'input parameters check'
         for k, v in list(self.get_params().items()):
             ctx[k] = self.headers.get(v[0], v[1])
@@ -60,13 +46,14 @@ class AuthHandler(BaseHTTPRequestHandler):
 
         if auth_cookie != None and auth_cookie != '':
             auth_header = "Basic " + auth_cookie
-            self.log_message("using username/password from cookie %s" %
-                             ctx['cookiename'])
+            self.log_message(
+                'using username/password from cookie %s',
+                ctx['cookiename'],
+            )
         else:
             self.log_message("using username/password from authorization header")
 
         if auth_header is None or not auth_header.lower().startswith('basic '):
-
             self.send_response(401)
             self.send_header('WWW-Authenticate', 'Basic realm="' + ctx['realm'] + '"')
             self.send_header('Cache-Control', 'no-cache')
@@ -78,22 +65,21 @@ class AuthHandler(BaseHTTPRequestHandler):
             return True
 
         ctx['action'] = 'decoding credentials'
-
         try:
             auth_decoded = base64.b64decode(auth_header[6:])
-            if sys.version_info.major == 3: auth_decoded = auth_decoded.decode("utf-8")
+            auth_decoded = auth_decoded.decode('utf-8')
             user, passwd = auth_decoded.split(':', 1)
-        except:
+        except Exception as ex:
             self.auth_failed(ctx)
             return True
 
         ctx['user'] = user
         ctx['pass'] = passwd
-
         # Continue request processing
         return False
 
     def get_cookie(self, name):
+        """Get auth cookie."""
         cookies = self.headers.get('Cookie')
         if cookies:
             authcookie = BaseCookie(cookies).get(name)
@@ -105,9 +91,8 @@ class AuthHandler(BaseHTTPRequestHandler):
             return None
 
 
-    # Log the error and complete the request with appropriate status
     def auth_failed(self, ctx, errmsg = None):
-
+        """Log the error and complete the request with appropriate status."""
         msg = 'Error while ' + ctx['action']
         if errmsg:
             msg += ': ' + errmsg
@@ -133,20 +118,25 @@ class AuthHandler(BaseHTTPRequestHandler):
         return {}
 
     def log_message(self, format, *args):
+        """Output log message."""
         if len(self.client_address) > 0:
             addr = BaseHTTPRequestHandler.address_string(self)
         else:
-            addr = "-"
-
+            addr = '-'
         if not hasattr(self, 'ctx'):
             user = '-'
         else:
             user = self.ctx['user']
-
-        sys.stdout.write("%s - %s [%s] %s\n" % (addr, user,
-                         self.log_date_time_string(), format % args))
+        sys.stdout.write(
+            '%s - %s [%s] %s\n' % (
+                addr,
+                user,
+                self.log_date_time_string(),
+                format % args,
+            ))
 
     def log_error(self, format, *args):
+        """Output error message."""
         self.log_message(format, *args)
 
 
@@ -164,7 +154,7 @@ class LDAPAuthHandler(AuthHandler):
              'template': ('X-Ldap-Template', '(cn=%(username)s)'),
              'binddn': ('X-Ldap-BindDN', ''),
              'bindpasswd': ('X-Ldap-BindPass', ''),
-             'cookiename': ('X-CookieName', '')
+             'cookiename': ('X-CookieName', ''),
         }
 
     @classmethod
@@ -176,7 +166,7 @@ class LDAPAuthHandler(AuthHandler):
 
     # GET handler for the authentication request
     def do_GET(self):
-
+        """Handle GET request."""
         ctx = dict()
         self.ctx = ctx
 
@@ -234,11 +224,14 @@ class LDAPAuthHandler(AuthHandler):
                               (ctx['url'], ctx['basedn'], searchfilter))
 
             ctx['action'] = 'running search query'
-            results = ldap_obj.search_s(ctx['basedn'], ldap.SCOPE_SUBTREE,
-                                          searchfilter, ['objectclass'], 1)
-
+            results = ldap_obj.search_s(
+                base=ctx['basedn'],
+                scope=ldap.SCOPE_SUBTREE,
+                filterstr=searchfilter,
+                attrlist=['objectclass'],
+                attrsonly=1,
+            )
             ctx['action'] = 'verifying search query results'
-
             nres = len(results)
 
             if nres < 1:
@@ -246,21 +239,18 @@ class LDAPAuthHandler(AuthHandler):
                 return
 
             if nres > 1:
-                self.log_message("note: filter match multiple objects: %d, using first" % nres)
-
+                self.log_message(
+                    'note: filter match multiple objects: %d, using first',
+                    nres,
+                )
             user_entry = results[0]
             ldap_dn = user_entry[0]
-
             if ldap_dn == None:
                 self.auth_failed(ctx, 'matched object has no dn')
                 return
-
             self.log_message('attempting to bind using dn "%s"' % (ldap_dn))
-
             ctx['action'] = 'binding as an existing user "%s"' % ldap_dn
-
             ldap_obj.bind_s(ldap_dn, ctx['pass'], ldap.AUTH_SIMPLE)
-
             self.log_message('Auth OK for user "%s"' % (ctx['user']))
 
             # Successfully authenticated user
@@ -268,10 +258,11 @@ class LDAPAuthHandler(AuthHandler):
             self.send_header('Remote_User', ctx['user'])
             self.end_headers()
 
-        except:
+        except Exception as ex:
             self.auth_failed(ctx)
 
 def exit_handler(signal, frame):
+    """Exit from service."""
     global Listen
 
     if isinstance(Listen, str):
@@ -290,9 +281,9 @@ if __name__ == '__main__':
     # Group for listen options:
     group = parser.add_argument_group("Listen options")
     group.add_argument('--host',  metavar="hostname",
-        default="localhost", help="host to bind (Default: localhost)")
+        help="host to bind (Default: /tmp/nginx-ldap-auth.sock)")
     group.add_argument('-p', '--port', metavar="port", type=int,
-        default=8888, help="port to bind (Default: 8888)")
+        help="port to bind")
     # ldap options:
     group = parser.add_argument_group(title="LDAP options")
     group.add_argument('-u', '--url', metavar="URL",
@@ -321,8 +312,11 @@ if __name__ == '__main__':
         default="", help="HTTP cookie name to set in (Default: unset)")
 
     args = parser.parse_args()
-    #global Listen
-    #Listen = (args.host, args.port)
+    if args.host:
+        if args.host[:1] == '/':
+            Listen = args.host
+        else:
+            Listen = (args.host, args.port)
     auth_params = {
              'realm': ('X-Ldap-Realm', args.realm),
              'url': ('X-Ldap-URL', args.url),
@@ -332,7 +326,7 @@ if __name__ == '__main__':
              'template': ('X-Ldap-Template', args.filter),
              'binddn': ('X-Ldap-BindDN', args.binddn),
              'bindpasswd': ('X-Ldap-BindPass', args.bindpw),
-             'cookiename': ('X-CookieName', args.cookie)
+             'cookiename': ('X-CookieName', args.cookie),
     }
     LDAPAuthHandler.set_params(auth_params)
     server = AuthHTTPServer(Listen, LDAPAuthHandler)
@@ -342,7 +336,6 @@ if __name__ == '__main__':
         os.chmod(Listen, (stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR |
                           stat.S_IRGRP | stat.S_IWGRP | stat.S_IXGRP |
                           stat.S_IROTH | stat.S_IWOTH | stat.S_IXOTH))
-
-    sys.stdout.write("Start listening on {}...\n".format(Listen))
+    sys.stdout.write('Start listening on {}...\n'.format(Listen))
     sys.stdout.flush()
     server.serve_forever()
