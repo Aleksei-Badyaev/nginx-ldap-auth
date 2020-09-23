@@ -1,4 +1,4 @@
-Версия: nginx-ldap-auth-${FILE,path="VERSION"}
+Версия: nginx-ldap-auth-${FILE,path="source/VERSION"}
 Автор: Aleksei Badyaev <aleksei.badiaev@mousesoft.site>
 Сборка: ${BUILD_NUMBER}
 Ветка: ${GIT_BRANCH}
