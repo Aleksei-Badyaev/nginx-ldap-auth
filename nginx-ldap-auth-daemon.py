@@ -37,7 +37,10 @@ class AuthHandler(BaseHTTPRequestHandler):
         for k, v in list(self.get_params().items()):
             ctx[k] = self.headers.get(v[0], v[1])
             if ctx[k] == None:
-                self.auth_failed(ctx, 'required "%s" header was not passed' % k)
+                self.auth_failed(
+                    ctx,
+                    'required "%s" header was not passed' % k,
+                )
                 return True
 
         ctx['action'] = 'performing authorization'
@@ -51,11 +54,16 @@ class AuthHandler(BaseHTTPRequestHandler):
                 ctx['cookiename'],
             )
         else:
-            self.log_message("using username/password from authorization header")
+            self.log_message(
+                'using username/password from authorization header'
+            )
 
         if auth_header is None or not auth_header.lower().startswith('basic '):
             self.send_response(401)
-            self.send_header('WWW-Authenticate', 'Basic realm="' + ctx['realm'] + '"')
+            self.send_header(
+                'WWW-Authenticate',
+                'Basic realm="' + ctx['realm'] + '"',
+            )
             self.send_header('Cache-Control', 'no-cache')
             self.end_headers()
             if auth_header is None:
@@ -110,7 +118,10 @@ class AuthHandler(BaseHTTPRequestHandler):
 
         self.log_error(msg)
         self.send_response(401)
-        self.send_header('WWW-Authenticate', 'Basic realm="' + ctx['realm'] + '"')
+        self.send_header(
+            'WWW-Authenticate',
+            'Basic realm="' + ctx['realm'] + '"',
+        )
         self.send_header('Cache-Control', 'no-cache')
         self.end_headers()
 
@@ -169,10 +180,8 @@ class LDAPAuthHandler(AuthHandler):
         """Handle GET request."""
         ctx = dict()
         self.ctx = ctx
-
         ctx['action'] = 'initializing basic auth handler'
         ctx['user'] = '-'
-
         if AuthHandler.do_GET(self):
             # request already processed
             return
@@ -181,7 +190,6 @@ class LDAPAuthHandler(AuthHandler):
         if not ctx['pass']:
             self.auth_failed(ctx, 'attempt to use empty password')
             return
-
         try:
             # check that uri and baseDn are set
             # either from cli or a request
