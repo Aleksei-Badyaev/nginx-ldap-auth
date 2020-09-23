@@ -1,7 +1,4 @@
-#!/bin/sh
-''''[ -z $LOG ] && export LOG=/dev/stdout # '''
-''''which python3  >/dev/null && exec python  -u "$0" "$@" >> $LOG 2>&1 # '''
-
+#!env python3
 # -*- coding: utf-8 -*-
 # Copyright (C) 2014-2015 Nginx, Inc.
 """Nginx LDAP Authentication."""
