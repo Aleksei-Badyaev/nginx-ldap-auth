@@ -1,0 +1,8 @@
+Версия: nginx-ldap-auth-${FILE,path="VERSION"}
+Автор: Aleksei Badyaev <aleksei.badiaev@mousesoft.site>
+Сборка: ${BUILD_NUMBER}
+Ветка: ${GIT_BRANCH}
+Ревизия: ${GIT_REVISION}
+
+Reference implementation of method for authenticating users on behalf
+of servers proxied by NGINX.

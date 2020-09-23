@@ -1,0 +1,7 @@
+{
+    "files": [
+        {   "pattern": "deb_dist/*.deb",
+            "target": "mousesoft/nginx-ldap-auth/VERSION/BRANCH/"
+        }
+    ]
+}

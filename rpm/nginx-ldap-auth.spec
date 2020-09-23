@@ -1,7 +1,7 @@
 %global logdir  /var/log/%name
 
 Name:		nginx-ldap-auth
-Version:	0.0.5
+Version:	0.2.0
 Release:	1%{?dist}
 Summary:	NGINX Plus LDAP authentication daemon
 
