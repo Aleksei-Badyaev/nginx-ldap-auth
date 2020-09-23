@@ -1,7 +1,8 @@
 #!/bin/sh
 ''''[ -z $LOG ] && export LOG=/dev/stdout # '''
-''''which python  >/dev/null && exec python  -u "$0" "$@" >> $LOG 2>&1 # '''
+''''which python3  >/dev/null && exec python  -u "$0" "$@" >> $LOG 2>&1 # '''
 
+# -*- coding: utf-8 -*-
 # Copyright (C) 2014-2015 Nginx, Inc.
 """Nginx LDAP Authentication."""
 
@@ -13,7 +14,7 @@ import base64
 import ldap
 import argparse
 
-from socketserver import ThreadingMixIn
+from socketserver import ThreadingUnixStreamServer, ThreadingMixIn
 from http.cookies import BaseCookie
 from http.server import HTTPServer, BaseHTTPRequestHandler
 
@@ -21,8 +22,12 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 Listen = '/tmp/nginx-ldap-auth.sock'
 
 
-class AuthHTTPServer(ThreadingMixIn, HTTPServer):
-    pass
+class AuthNetServer(ThreadingMixIn, HTTPServer):
+    """Network TCP server."""
+
+
+class AuthStreamServer(ThreadingUnixStreamServer, HTTPServer):
+    """Unix socket server."""
 
 
 class AuthHandler(BaseHTTPRequestHandler):
@@ -337,7 +342,11 @@ if __name__ == '__main__':
              'cookiename': ('X-CookieName', args.cookie),
     }
     LDAPAuthHandler.set_params(auth_params)
-    server = AuthHTTPServer(Listen, LDAPAuthHandler)
+    server = None
+    if isinstance(Listen, str):
+        server = AuthStreamServer(Listen, LDAPAuthHandler)
+    else:
+        server = AuthNetServer(Listen, LDAPAuthHandler)
     signal.signal(signal.SIGINT, exit_handler)
     signal.signal(signal.SIGTERM, exit_handler)
     if isinstance(Listen, str):
