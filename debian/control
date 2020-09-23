@@ -2,7 +2,7 @@ Source: nginx-ldap-auth
 Maintainer: Aleksei Badiaev <aleksei.badiaev@mousesoft.site>
 Section: misc
 Priority: optional
-Standards-Version: 0.3.1
+Standards-Version: 0.3.2
 Build-Depends: debhelper (>= 9), dh-systemd, python, dh-python, dh-exec
 
 Package: nginx-ldap-auth
