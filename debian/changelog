@@ -1,4 +1,4 @@
-nginx-ldap-auth (0.3-1) mousesoft-stable; urgency=low
+nginx-ldap-auth (0.3.1-1) mousesoft-stable; urgency=low
 
   * Merge with upstream.
 
