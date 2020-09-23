@@ -263,7 +263,7 @@ class LDAPAuthHandler(AuthHandler):
 
             # Successfully authenticated user
             self.send_response(200)
-            self.send_header('Remote_User', ctx['user'])
+            self.send_header('X-Remote-User', ctx['user'])
             self.end_headers()
 
         except Exception as ex:
