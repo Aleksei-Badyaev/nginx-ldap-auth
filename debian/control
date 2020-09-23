@@ -1,13 +1,13 @@
 Source: nginx-ldap-auth
-Maintainer: Ippolitov Igor <iippolitov@nginx.com>
+Maintainer: Aleksei Badiaev <aleksei.badiaev@mousesoft.site>
 Section: misc
 Priority: optional
-Standards-Version: 0.2.0
+Standards-Version: 0.2.1
 Build-Depends: debhelper (>= 9), dh-systemd, python, dh-python, dh-exec
 
 Package: nginx-ldap-auth
 Architecture: all
-Depends:  systemd, python(>=3.5), python3-ldap
+Depends:  systemd, python3(>=3.5), python3-ldap
 Description: a reference implementation of an authentication helper for Nginx
  This is a reference implementation of an authentication helper for Nginx.
  It listens for incoming requests and uses parameters from headers
